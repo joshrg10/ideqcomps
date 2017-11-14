@@ -1,0 +1,87 @@
+import requests
+from bs4 import BeautifulSoup, SoupStrainer
+import csv
+
+
+url=input ("Please enter the Rightmove link after providing postcode and search details: " )
+correctedUrl = url.replace(" ","")
+pages=input("How many pages are there?")
+filename=input ("Please enter the desired file name")
+filenamecsv=filename + ".csv"
+number = 0
+pagesint=int(pages)
+urls = []
+cutOff = "&index="
+
+#add initial link to the urls list
+urls.append(correctedUrl)
+
+#create the full urls list
+while number <= (pagesint*25)-25:
+    if number == 0:
+        number = number + 25
+    else:
+        if "&index=" not in correctedUrl:
+            ref = str(number)
+            correctedUrl = correctedUrl + "&index=" + ref
+            number = number + 25
+            urls.append(correctedUrl)
+        else:
+            print(number)
+            corUrl2 = correctedUrl.split(cutOff, 1)[0] + "&index=" + str(number)
+            number = int(number) + int(25)
+            urls.append(corUrl2)
+
+r_link=[]
+sold_unit=[]
+
+#Define function for scraping comps
+def getComps(url):
+    r = requests.get(url)
+    soup = BeautifulSoup(r.content, "html.parser")
+
+    find_sold_unit=soup.find_all("li", {"class": "soldUnit"})
+    find_link=soup.find_all("a", {"class": "soldAddress"})
+    autoPage = soup.find("span", {"class": "pagenavigation pagecount"})
+
+    for link in find_sold_unit:
+        sold_unit.append((link.text).splitlines())
+
+    for e in sold_unit:
+        for i, s in enumerate(e):
+            e[i] = s.strip("£")
+
+    for i in sold_unit:
+        while "" in i[0:3]:
+            i.remove("")
+
+    for i in sold_unit:
+        del i[5:]
+
+    for link in find_link:
+        r_link.append("www.rightmove.co.uk"+link.get("href"))
+
+    for i in sold_unit:
+        print(i)
+
+    for i in r_link:
+        print(i)
+
+    print(len(sold_unit))
+    print(len(r_link))
+
+
+#Loop getComps for all pages
+i = 0
+while i < len(urls):
+    getComps(urls[i])
+    i = i + 1
+
+#Write CSV file
+with open(filenamecsv, 'w') as f:
+    fieldnames = ["Address of property", "Price in £", "Type of property", "Date of sale", "No of bedrooms"]
+    writer = csv.DictWriter(f, fieldnames=fieldnames)
+    writer.writeheader()
+    writer = csv.writer(f)
+    writer.writerows(sold_unit)
+
